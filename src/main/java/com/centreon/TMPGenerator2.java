@@ -74,38 +74,55 @@ public class TMPGenerator2 {
 
                 long rowTimestamp = granularizeTimestamp(Long.parseLong(cells[6]) * 1000);
                 String metricName = cells[1] + ":" + cells[3] + ":" + cells[5];
+
+                // get the number of the celle to write to
                 int metricIndex = metrics.indexOf(metricName);
                 if (metricIndex == -1) {
                     continue;
                 }
+
+                // get data available (or not) of this timestamp
                 String[] rowData = resultData.get(rowTimestamp);
+                // build a new empty array if the timestamp doesn't already have data
                 if (rowData == null) {
                     rowData = new String[metrics.size()];
                     resultData.put(rowTimestamp, rowData);
                 }
+
+                rowData[metricIndex] = cells[7];
+
+                // for statistics purpose
                 MetricInfo info = metricsUsage[metricIndex];
                 if (info == null) {
                     metricsUsage[metricIndex] = MetricInfo.from(rowTimestamp);
                 } else {
                     info.consider(rowTimestamp);
                 }
-
-                rowData[metricIndex] = cells[7];
             }
         } catch (FileNotFoundException fnf) {
             throw new IllegalArgumentException("Failed to read source file [" + sourceFile + "]");
         }
 
+        log.info("Ended read input data file, output generation under process...");
+
+        // now we have finished to write data inside the map resultData
+        // then we write it to the output file
         try (PrintStream os = new PrintStream(resultFile)) {
+
+            // we use a StringBuilders to optimize string concatenation
+
+            // first we write the header with metrics names provided
             StringBuilder resultHeader = new StringBuilder("Timestamp");
             for (String metric : metrics) {
                 resultHeader.append(';').append(metric);
             }
             os.println(resultHeader.toString());
 
+            // then we write data rows sorted by timestamp
             List<Long> sorted = new ArrayList<>(resultData.keySet());
             Collections.sort(sorted);
             for (Long timestamp : sorted) {
+                // we retreive the values available for this timestamp and build the row
                 String[] values = resultData.get(timestamp);
                 StringBuilder resultRow = new StringBuilder();
                 resultRow.append(Instant.ofEpochMilli(timestamp).toString());
@@ -113,6 +130,7 @@ public class TMPGenerator2 {
                     resultRow.append(';').append(value == null ? "" : value);
                 }
                 os.println(resultRow.toString());
+                // TODO optimization: avoid flush for each line
                 os.flush();
             }
             os.flush();

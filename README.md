@@ -15,6 +15,8 @@ To launch the programme:
 
     java -jar generator-{version}.jar [metrics list file] [data file] [output file]
 
+The program agregate informations in a map in memory so it could need quite a log of Heap, it could be needed to provided `Xmx` param to the JVM: `java -Xmx1g -jar ...`
+
 ## Description
 
 Two input files are expected:
